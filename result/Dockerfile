@@ -6,6 +6,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/local/app
+Run useradd --create-home --uid 10001
 
 # have nodemon available for local dev use (file watching)
 RUN npm install -g nodemon
@@ -23,3 +24,4 @@ EXPOSE 80
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "server.js"]
+USER 10001:10001
