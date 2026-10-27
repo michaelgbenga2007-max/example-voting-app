@@ -1,65 +1,272 @@
-# Example Voting App
+# Voting App — DevOps Capstone Project
 
-A simple distributed application running across multiple Docker containers.
+A containerized distributed voting application enhanced with DevOps practices, including automated builds, security scanning, Kubernetes deployment, Helm, and Infrastructure as Code.
 
-## Getting started
+## 1. Project Overview
 
-Download [Docker Desktop](https://www.docker.com/products/docker-desktop) for Mac or Windows. [Docker Compose](https://docs.docker.com/compose) will be automatically installed. On Linux, make sure you have the latest version of [Compose](https://docs.docker.com/compose/install/).
+This project demonstrates how to package, validate, scan, and deploy a distributed application using modern DevOps tools.
 
-This solution uses Python, Node.js, .NET, with Redis for messaging and Postgres for storage.
+The application allows users to vote between two options and view the results in real time.
 
-Run in this directory to build and run the app:
+### Objectives
 
-```shell
-docker compose up
+- Run the application using Docker Compose.
+- Containerize application components.
+- Validate application configuration.
+- Automate CI tasks using GitHub Actions.
+- Scan the project for security vulnerabilities and misconfigurations using Trivy.
+- Deploy application components to Kubernetes.
+- Package Kubernetes resources using Helm.
+- Define cloud infrastructure using Terraform.
+- Document deployment, security, and rollback procedures.
+
+## 2. Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| Docker | Containerization |
+| Docker Compose | Local multi-container orchestration |
+| Kubernetes | Container orchestration |
+| Helm | Kubernetes application packaging and deployment |
+| Terraform | Infrastructure as Code |
+| GitHub Actions | Continuous Integration automation |
+| Trivy | Security and misconfiguration scanning |
+| Python | Voting frontend |
+| Node.js | Results frontend |
+| .NET | Background worker |
+| Redis | Temporary vote messaging |
+| PostgreSQL | Vote storage |
+
+## 3. Application Architecture
+
+The application consists of the following components:
+
+1. **Vote:** A Python web application that accepts votes.
+2. **Redis:** Receives and temporarily holds votes.
+3. **Worker:** A .NET service that transfers votes from Redis to PostgreSQL.
+4. **PostgreSQL:** Stores the votes.
+5. **Result:** A Node.js web application that displays voting results.
+
+### Architecture Flow
+
+```text
+                 Users
+                   |
+          +--------+--------+
+          |                 |
+     Vote Frontend     Result Frontend
+          |                 |
+          v                 |
+        Redis               |
+          |                 |
+          v                 |
+        Worker               |
+          |                 |
+          v                 |
+      PostgreSQL ------------+
 ```
 
-The `vote` app will be running at [http://localhost:8080](http://localhost:8080), and the `results` will be at [http://localhost:8081](http://localhost:8081).
+## 4. Run Locally with Docker Compose
 
-Alternately, if you want to run it on a [Docker Swarm](https://docs.docker.com/engine/swarm/), first make sure you have a swarm. If you don't, run:
+### Prerequisites
 
-```shell
-docker swarm init
+- Docker Desktop
+- Git
+- PowerShell on Windows, or a compatible terminal
+
+### Start the application
+
+Clone your repository if you have not already done so:
+
+```bash
+git clone https://github.com/michaelgbenga2007-max/example-voting-app.git
+cd example-voting-app
 ```
 
-Once you have your swarm, in this directory run:
+Build and start the application:
 
-```shell
-docker stack deploy --compose-file docker-stack.yml vote
+```bash
+docker compose up --build -d
 ```
 
-## Run the app in Kubernetes
+Check the running containers:
 
-The folder k8s-specifications contains the YAML specifications of the Voting App's services.
-
-Run the following command to create the deployments and services. Note it will create these resources in your current namespace (`default` if you haven't changed it.)
-
-```shell
-kubectl create -f k8s-specifications/
+```bash
+docker compose ps
 ```
 
-The `vote` web app is then available on port 31000 on each host of the cluster, the `result` web app is available on port 31001.
+Open the application:
 
-To remove them, run:
+- Voting interface: http://localhost:8080
+- Results interface: http://localhost:8081
 
-```shell
-kubectl delete -f k8s-specifications/
+View application logs:
+
+```bash
+docker compose logs
 ```
 
-## Architecture
+Stop the application:
 
-![Architecture diagram](architecture.excalidraw.png)
+```bash
+docker compose down
+```
 
-* A front-end web app in [Python](/vote) which lets you vote between two options
-* A [Redis](https://hub.docker.com/_/redis/) which collects new votes
-* A [.NET](/worker/) worker which consumes votes and stores them in…
-* A [Postgres](https://hub.docker.com/_/postgres/) database backed by a Docker volume
-* A [Node.js](/result) web app which shows the results of the voting in real time
+## 5. Kubernetes Deployment
 
-## Notes
+The repository includes Kubernetes specifications in `k8s-specifications/` and a Helm chart in `voting-app/`.
 
-The voting application only accepts one vote per client browser. It does not register additional votes if a vote has already been submitted from a client.
+Ensure that your Kubernetes cluster is running and that `kubectl` is configured to access it.
 
-This isn't an example of a properly architected perfectly designed distributed app... it's just a simple
-example of the various types of pieces and languages you might see (queues, persistent data, etc), and how to
-deal with them in Docker at a basic level.
+### Deploy using Kubernetes manifests
+
+```bash
+kubectl apply -f k8s-specifications/
+```
+
+Check deployments and pods:
+
+```bash
+kubectl get deployments
+kubectl get pods
+kubectl get services
+```
+
+The example manifests expose the voting interface on NodePort `31000` and the results interface on NodePort `31001`, subject to the current cluster and service configuration.
+
+### Deploy using Helm
+
+Install or upgrade the application using the project's Helm chart:
+
+```bash
+helm upgrade --install voting-app ./voting-app
+```
+
+Check the release:
+
+```bash
+helm list
+helm status voting-app
+```
+
+View the rendered Kubernetes resources:
+
+```bash
+helm template voting-app ./voting-app
+```
+
+Validate the chart:
+
+```bash
+helm lint ./voting-app
+```
+
+### Rollback
+
+Inspect the release history:
+
+```bash
+helm history voting-app
+```
+
+If a previous release exists, roll back to a known-good revision:
+
+```bash
+helm rollback voting-app 1
+```
+
+Replace `1` with the actual revision you intend to restore. Verify the result using `helm status voting-app` and `kubectl get pods`.
+
+## 6. Continuous Integration
+
+The GitHub Actions workflow is located at:
+
+`.github/workflows/ci.yml`
+
+The workflow is configured to run on pushes to `main` and pull requests targeting `main`.
+
+Its intended checks include:
+
+1. Checking out the repository.
+2. Scanning the project with Trivy.
+3. Validating the Docker Compose configuration.
+4. Building the Docker Compose application images.
+
+Workflow execution can be inspected in the repository's **Actions** tab.
+
+A successful workflow run should be confirmed from GitHub Actions. Security findings or failed steps must be investigated before the pipeline can be considered fully successful.
+
+## 7. Security Practices
+
+The project uses Trivy to identify potential security vulnerabilities, exposed secrets, and configuration issues.
+
+Recommended security practices include:
+
+- Use trusted and appropriately pinned container image versions.
+- Avoid committing passwords, access keys, or other secrets.
+- Run application containers as non-root users where supported.
+- Apply least-privilege permissions.
+- Configure suitable Kubernetes security contexts.
+- Avoid using development credentials in production.
+- Review and resolve high- and critical-severity findings.
+
+Trivy findings must be reviewed individually. A scan that reports unresolved findings should not be described as clean.
+
+## 8. Infrastructure as Code
+
+Terraform files are maintained in the `terraform/` directory.
+
+The standard Terraform workflow is:
+
+```bash
+terraform -chdir=terraform init
+terraform -chdir=terraform validate
+terraform -chdir=terraform plan
+```
+
+Review the proposed changes before applying infrastructure.
+
+The presence of Terraform files does not by itself mean that cloud infrastructure has been provisioned. Cloud deployment requires a configured provider, valid authentication, and the required infrastructure resources.
+
+## 9. Deployment Status and Limitations
+
+The project has been developed with local container execution, Kubernetes resources, Helm, Terraform scaffolding, and a GitHub Actions workflow.
+
+The following items must be verified against the actual project state before final submission:
+
+- Latest GitHub Actions result.
+- Trivy scan findings and remediation status.
+- Successful Helm deployment and rollback evidence.
+- Completeness of the Terraform infrastructure configuration.
+- Cloud infrastructure provisioning and deployment, if required by the assessment.
+
+AWS deployment is pending until AWS authentication and infrastructure provisioning are completed.
+
+This project should not be considered fully deployed to the cloud until the relevant infrastructure and application deployment have been verified.
+
+## 10. Repository Structure
+
+```text
+example-voting-app/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── vote/
+├── result/
+├── worker/
+├── seed-data/
+├── k8s-specifications/
+├── voting-app/
+├── terraform/
+├── compose.yaml
+└── README.md
+```
+
+The exact repository structure may vary as the project evolves.
+
+## 11. Author and Project Context
+
+**Project:** DevOps Engineering Capstone — Voting App  
+**Project objective:** Demonstrate containerization, automated validation, security scanning, Kubernetes deployment, Helm packaging, and Infrastructure as Code.
+
+**Repository:** https://github.com/michaelgbenga2007-max/example-voting-app
